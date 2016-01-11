@@ -6,8 +6,10 @@
 #define CAFFE_FILLER_HPP
 
 #include <string>
+#include <fstream>
 
 #include "caffe/blob.hpp"
+#include "caffe/common.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -262,6 +264,30 @@ class BilinearFiller : public Filler<Dtype> {
 };
 
 /**
+ * @brief Use file to initialize the weights or bias
+ */
+template <typename Dtype>
+class FileFiller : public Filler<Dtype> {
+ public:
+  explicit FileFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+	  CHECK(this->filler_param_.has_file());
+	  std::ifstream file(this->filler_param_.file().c_str());
+	  Dtype* data = blob->mutable_cpu_data();
+	  int count = blob->count();
+	  Dtype temp;
+	  for(int i=0; i<count; ++i) {
+		  file >> temp;
+		  data[i] = temp;
+		  std::cout << "Setting " << i << "th position to " << temp << std::endl;
+	  }
+	  CHECK_EQ(this->filler_param_.sparse(), -1)
+	           << "Sparsity not supported by this Filler.";
+  }
+};
+
+/**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
  * Ideally this would be replaced by a factory pattern, but we will leave it
@@ -282,6 +308,8 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new XavierFiller<Dtype>(param);
   } else if (type == "msra") {
     return new MSRAFiller<Dtype>(param);
+  } else if (type == "file") {
+	return new FileFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
   } else {

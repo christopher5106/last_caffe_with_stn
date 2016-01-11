@@ -59,6 +59,9 @@ message FillerParameter {
     AVERAGE = 2;
   }
   optional VarianceNorm variance_norm = 8 [default = FAN_IN];
+
+  // added by Kaichun Mo
+  optional string file = 9;
 }
 
 message NetParameter {
@@ -98,7 +101,7 @@ message NetParameter {
 // NOTE
 // Update the next available ID when you add a new SolverParameter field.
 //
-// SolverParameter next available ID: 41 (last added: type)
+// SolverParameter next available ID: 40 (last added: momentum2)
 message SolverParameter {
   //////////////////////////////////////////////////////////////////////////////
   // Specifying the train and test networks
@@ -278,6 +281,50 @@ message NetStateRule {
   repeated string not_stage = 5;
 }
 
+// added by Kaichun Mo
+message SpatialTransformerParameter {
+
+	// How to use the parameter passed by localisation network
+	optional string transform_type = 1 [default = "affine"];
+	// What is the sampling technique
+	optional string sampler_type = 2 [default = "bilinear"];
+
+	// If not set,stay same with the input dimension H and W
+	optional int32 output_H = 3;
+	optional int32 output_W = 4;
+
+	// If false, only compute dTheta, DO NOT compute dU
+	optional bool to_compute_dU = 5 [default = true];
+
+	// The default value for some parameters
+	optional double theta_1_1 = 6;
+	optional double theta_1_2 = 7;
+	optional double theta_1_3 = 8;
+	optional double theta_2_1 = 9;
+	optional double theta_2_2 = 10;
+	optional double theta_2_3 = 11;
+}
+
+// added by Kaichun Mo
+message PowerFileParameter {
+
+	optional string shift_file = 1;
+}
+
+// added by Kaichun Mo
+message STLossParameter {
+
+	// Indicate the resolution of the output images after ST transformation
+	required int32 output_H = 1;
+	required int32 output_W = 2;
+}
+
+// added by Kaichun Mo
+message LocLossParameter {
+
+	required double threshold = 1;
+}
+
 // Specifies training parameters (multipliers on global learning constants,
 // and the name and other settings used for weight sharing).
 message ParamSpec {
@@ -306,7 +353,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 140 (last added: batch_norm_param)
+// LayerParameter next available layer-specific ID: 139 (last added: tile_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -391,6 +438,12 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+
+  // added by Kaichun Mo
+  optional SpatialTransformerParameter st_param = 144;
+  optional STLossParameter st_loss_param = 141;
+  optional PowerFileParameter power_file_param = 142;
+  optional LocLossParameter loc_loss_param = 143;
 }
 
 // Message that stores parameters used to apply transformation
@@ -420,15 +473,15 @@ message TransformationParameter {
 message LossParameter {
   // If specified, ignore instances with the given label.
   optional int32 ignore_label = 1;
-  // How to normalize the loss for loss layers that aggregate across batches,
-  // spatial dimensions, or other dimensions.  Currently only implemented in
-  // SoftmaxWithLoss layer.
+  // If true, normalize each batch across all instances (including spatial
+  // dimesions, but not ignored instances); else, divide by batch size only.
+
   enum NormalizationMode {
     // Divide by the number of examples in the batch times spatial dimensions.
     // Outputs that receive the ignore label will NOT be ignored in computing
     // the normalization factor.
     FULL = 0;
-    // Divide by the total number of output locations that do not take the 
+    // Divide by the total number of output locations that do not take the
     // ignore_label.  If ignore_label is not set, this behaves like FULL.
     VALID = 1;
     // Divide by the batch size.
@@ -467,11 +520,8 @@ message ArgMaxParameter {
   // If true produce pairs (argmax, maxval)
   optional bool out_max_val = 1 [default = false];
   optional uint32 top_k = 2 [default = 1];
-  // The axis along which to maximise -- may be negative to index from the
-  // end (e.g., -1 for the last axis).
-  // By default ArgMaxLayer maximizes over the flattened trailing dimensions
-  // for each index of the first / num dimension.
-  optional int32 axis = 3;
+
+    optional int32 axis = 3;
 }
 
 message ConcatParameter {
@@ -512,12 +562,12 @@ message ContrastiveLossParameter {
 message ConvolutionParameter {
   optional uint32 num_output = 1; // The number of outputs for the layer
   optional bool bias_term = 2 [default = true]; // whether to have bias terms
-
   // Pad, kernel size, and stride are all given as a single value for equal
-  // dimensions in all spatial dimensions, or once per spatial dimension.
+  // dimensions in height and width or as Y, X pairs.
   repeated uint32 pad = 3; // The padding size; defaults to 0
   repeated uint32 kernel_size = 4; // The kernel size
-  repeated uint32 stride = 6; // The stride; defaults to 1
+  repeated uint32 stride = 6; // The stride (equal in Y, X)
+
   // Factor used to dilate the kernel, (implicitly) zero-filling the resulting
   // holes. (Kernel dilation is sometimes referred to by its use in the
   // algorithme à trous from Holschneider et al. 1987.)
@@ -532,7 +582,9 @@ message ConvolutionParameter {
   optional uint32 stride_h = 13; // The stride height (2D only)
   optional uint32 stride_w = 14; // The stride width (2D only)
 
+
   optional uint32 group = 5 [default = 1]; // The group size for group conv
+
 
   optional FillerParameter weight_filler = 7; // The filler for the weight
   optional FillerParameter bias_filler = 8; // The filler for the bias
