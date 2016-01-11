@@ -3,13 +3,13 @@
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/gpu_util.cuh"
-#include "caffe/st_layer.hpp"
+#include "caffe/layers/st_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 
 namespace caffe {
 
 template <typename Dtype>
-__global__ void set_value_to_constant(const int nthreads, Dtype value, int size, 
+__global__ void set_value_to_constant(const int nthreads, Dtype value, int size,
 	int i, Dtype* dst) {
 
 	CUDA_KERNEL_LOOP(index, nthreads) {
@@ -18,7 +18,7 @@ __global__ void set_value_to_constant(const int nthreads, Dtype value, int size,
 }
 
 template <typename Dtype>
-__global__ void copy_values(const int nthreads, int size_src, int k, 
+__global__ void copy_values(const int nthreads, int size_src, int k,
 	const Dtype* src, int size_dst, int i, Dtype* dst) {
 
 	CUDA_KERNEL_LOOP(index, nthreads) {
@@ -30,7 +30,7 @@ template <typename Dtype>
 __global__ void SpatialTransformerForwardGPU(const int nthreads, int N, int C,
 		int output_H_, int output_W_, int H, int W,
 		const Dtype* input_grid_data, const Dtype* U, Dtype* V) {
-	
+
 	CUDA_KERNEL_LOOP(index, nthreads) {
 
 		const int t = index % output_W_;
@@ -89,27 +89,27 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	const Dtype* U = bottom[0]->gpu_data();
 	const Dtype* theta = bottom[1]->gpu_data();
 	const Dtype* output_grid_data = output_grid.gpu_data();
-	
+
 	Dtype* full_theta_data = full_theta.mutable_gpu_data();
 	Dtype* input_grid_data = input_grid.mutable_gpu_data();
 	Dtype* V = top[0]->mutable_gpu_data();
 
 	caffe_gpu_set(input_grid.count(), (Dtype)0, input_grid_data);
 	caffe_gpu_set(top[0]->count(), (Dtype)0, V);
-	
+
 	// compute full_theta
-	int k = 0; 
+	int k = 0;
 	const int num_threads = N;
 	for(int i=0; i<6; ++i) {
 		if(is_pre_defined_theta[i]) {
-			set_value_to_constant<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>( 
+			set_value_to_constant<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(
 				num_threads, pre_defined_theta[i], 6, i, full_theta_data);
-			//std::cout << "Setting value " << pre_defined_theta[i] << " to "<< i << 
+			//std::cout << "Setting value " << pre_defined_theta[i] << " to "<< i <<
 			//	"/6 of full_theta_data" << std::endl;
 		} else {
-			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads, 
+			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
 				6 - pre_defined_count, k, theta, 6, i, full_theta_data);
-			//std::cout << "Copying " << k << "/" << 6 - pre_defined_count << " of theta to " 
+			//std::cout << "Copying " << k << "/" << 6 - pre_defined_count << " of theta to "
 			//	<< i << "/6 of full_theta_data" << std::endl;
 			++ k;
 		}
@@ -131,9 +131,9 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 template <typename Dtype>
 __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 		int output_H_, int output_W_, int H, int W,
-		const Dtype* input_grid_data, const Dtype* dV_array, const Dtype* U_array,  
+		const Dtype* input_grid_data, const Dtype* dV_array, const Dtype* U_array,
 		Dtype* dTheta_tmp_diff) {
-	
+
 	CUDA_KERNEL_LOOP(index, nthreads) {
 
 		const int t = index % output_W_;
@@ -147,7 +147,7 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 
 		const Dtype px = coordinates[row_idx * 2];
 		const Dtype py = coordinates[row_idx * 2 + 1];
-		
+
 		Dtype delta_dpx = (Dtype)0.;
 		Dtype delta_dpy = (Dtype)0.;
 
@@ -156,39 +156,39 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 		const int dV_offset = index;
 		const Dtype dV = dV_array[dV_offset];
 
-		int m, n; 
+		int m, n;
 		const Dtype* U = U_array + i * (C * H * W) + j * (H * W);
 
 		// left-bottom neighbor
-		m = floor(x); n = floor(y); 
+		m = floor(x); n = floor(y);
 		if(m >= 0 && m < H && n >= 0 && n < W) {
 			delta_dpx -= (1 - (y - n)) * U[m * W + n] * dV * H / 2;
 			delta_dpy -= (1 - (x - m)) * U[m * W + n] * dV * W / 2;
 		}
-		
+
 		// left-top neighbor
-		m = floor(x); n = floor(y) + 1; 
+		m = floor(x); n = floor(y) + 1;
 		if(m >= 0 && m < H && n >= 0 && n < W) {
 			delta_dpx -= (1 - (n - y)) * U[m * W + n] * dV * H / 2;
 			delta_dpy += (1 - (x - m)) * U[m * W + n] * dV * W / 2;
 		}
 
 		// right-bottom neighbor
-		m = floor(x) + 1; n = floor(y); 
+		m = floor(x) + 1; n = floor(y);
 		if(m >= 0 && m < H && n >= 0 && n < W) {
 			delta_dpx += (1 - (y - n)) * U[m * W + n] * dV * H / 2;
 			delta_dpy -= (1 - (m - x)) * U[m * W + n] * dV * W / 2;
 		}
-		
+
 		// right-top neighbor
-		m = floor(x) + 1; n = floor(y) + 1; 
+		m = floor(x) + 1; n = floor(y) + 1;
 		if(m >= 0 && m < H && n >= 0 && n < W) {
 			delta_dpx += (1 - (n - y)) * U[m * W + n] * dV * H / 2;
 			delta_dpy += (1 - (m - x)) * U[m * W + n] * dV * W / 2;
 		}
-		
+
 		int idx = j * (output_H_ * output_W_) + s * output_W_ + t;
-		
+
 		dTheta_tmp_diff[(6 * i) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (s * 1.0 / output_H_ * 2 - 1);
 		dTheta_tmp_diff[(6 * i + 1) * (output_H_ * output_W_ * C) + idx] += delta_dpx * (t * 1.0 / output_W_ * 2 - 1);
 		dTheta_tmp_diff[(6 * i + 2) * (output_H_ * output_W_ * C) + idx] += delta_dpx;
@@ -199,10 +199,10 @@ __global__ void SpatialTransformerBackwardGPU_dTheta(const int nthreads, int C,
 }
 
 template <typename Dtype>
-__global__ void SpatialTransformerBackwardGPU_dU(const int nthreads, const int C, 
-	const int W,  const int H, const int output_H_, const int output_W_, 
+__global__ void SpatialTransformerBackwardGPU_dU(const int nthreads, const int C,
+	const int W,  const int H, const int output_H_, const int output_W_,
 	const Dtype* input_grid_data, const Dtype* dV, Dtype* dU) {
-	
+
 	CUDA_KERNEL_LOOP(index, nthreads) {
 
 		const int t = index % output_W_;
@@ -274,34 +274,34 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 
 	Dtype* all_ones_2_data = all_ones_2.mutable_gpu_data();
 	caffe_gpu_set(all_ones_2.count(), (Dtype)1., all_ones_2_data);
-	
-	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, full_theta.count(), 1, output_H_ * output_W_ * C, 
+
+	caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, full_theta.count(), 1, output_H_ * output_W_ * C,
 			(Dtype)1., dTheta_tmp_diff, all_ones_2_data, (Dtype)0., dFull_theta);
-			
+
 	/*const Dtype* db_dFull_theta = full_theta.cpu_diff();
 	for(int i=0; i<full_theta.count(); ++i) {
 		std::cout << db_dFull_theta[i] << " ";
 	}
 	std::cout<<std::endl;*/
-			
+
 	int k = 0;
 	const int num_threads = N;
 	for(int i=0; i<6; ++i) {
 		if(!is_pre_defined_theta[i]) {
-			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads, 
+			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads,
 				6, i, dFull_theta, 6 - pre_defined_count, k, dTheta);
-			//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" << 
+			//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" <<
 			//	6 - pre_defined_count << " of dTheta" << std::endl;
 			++ k;
 		}
 	}
-	
+
 	/*const Dtype* db_dtheta = bottom[1]->cpu_diff();
 	for(int i=0; i<bottom[1]->count(); ++i) {
 		std::cout << db_dtheta[i] << " ";
 	}
 	std::cout<<std::endl;*/
-			
+
 	if(to_compute_dU_) {
 		Dtype* dU = bottom[0]->mutable_gpu_diff();
 		caffe_gpu_set(bottom[0]->count(), (Dtype)0., dU);

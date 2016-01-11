@@ -4,7 +4,7 @@
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 
-#include "caffe/st_loss_layer.hpp"
+#include "caffe/layers/st_loss_layer.hpp"
 
 namespace caffe {
 
