@@ -240,8 +240,8 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 
 	string prefix = "\t\tSpatial Transformer Layer:: Forward_cpu: \t";
 
-	CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
-			" CHECK in st_layer.cpp file. Line number: 240-241." << std::endl;
+	// CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
+	// 		" CHECK in st_layer.cpp file. Line number: 240-241." << std::endl;
 
 	if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 

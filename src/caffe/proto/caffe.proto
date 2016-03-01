@@ -445,10 +445,10 @@ message LayerParameter {
   optional WindowDataParameter window_data_param = 129;
 
   // added by Kaichun Mo
-  optional SpatialTransformerParameter st_param = 144;
-  optional STLossParameter st_loss_param = 141;
-  optional PowerFileParameter power_file_param = 142;
-  optional LocLossParameter loc_loss_param = 143;
+  optional SpatialTransformerParameter st_param = 147;
+  optional STLossParameter st_loss_param = 144;
+  optional PowerFileParameter power_file_param = 145;
+  optional LocLossParameter loc_loss_param = 146;
 }
 
 // Message that stores parameters used to apply transformation
