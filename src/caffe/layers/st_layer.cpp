@@ -190,7 +190,7 @@ Dtype SpatialTransformerLayer<Dtype>::transform_forward_cpu(const Dtype* pic, Dt
 
 	string prefix = "\t\tSpatial Transformer Layer:: transform_forward_cpu: \t";
 
-	if(debug) std::cout<<prefix<<"Starting!\t"<<std::endl;
+	//if(debug) std::cout<<prefix<<"Starting!\t"<<std::endl;
 	if(debug) std::cout<<prefix<<"(px, py) = ("<<px<<", "<<py<<")"<<std::endl;
 
 	Dtype res = (Dtype)0.;
@@ -209,7 +209,7 @@ Dtype SpatialTransformerLayer<Dtype>::transform_forward_cpu(const Dtype* pic, Dt
       if(m >= 0 && m < H && n >= 0 && n < W) {
         w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
         res += w * pic[m * W + n];
-        if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
+        //if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
       }
     }
 
@@ -233,6 +233,8 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 	const Dtype* U = bottom[0]->cpu_data();
 	const Dtype* theta = bottom[1]->cpu_data();
 
+  Dtype* full_theta_data = full_theta.mutable_cpu_data();
+
   // input_grid_data : pour chaque pixel de chaque image, px et py (coordonnées du pixel dans l'image input)
   Dtype* input_grid_data = input_grid.mutable_cpu_data();
 
@@ -245,6 +247,23 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 	caffe_set(input_grid.count(), (Dtype)0, input_grid_data);
 	caffe_set(top[0]->count(), (Dtype)0, V);
 
+  // compute full_theta
+  std::cout<<prefix<<"compute full theta"<< std::endl;
+  int k = 0;
+  for(int i=0; i<6; ++i) {
+    if(is_pre_defined_theta[i]) {
+      for(int j = 0; j < N ; j++)
+        full_theta_data[full_theta.offset(j,i)] = pre_defined_theta[i];
+      std::cout<<prefix<<"assigning predefined"<<pre_defined_theta[i] << std::endl;
+    } else {
+      for(int j = 0; j < N ; j++){
+        full_theta_data[full_theta.offset(j,i)] = theta[bottom[1]->offset(j,k)];
+        std::cout<<prefix<<"assigning "<<theta[bottom[1]->offset(j,k)] << std::endl;
+      }
+      ++ k;
+    }
+  }
+
 	// for each input in the batch
 	for(int i = 0; i < N; ++i) {
 
@@ -255,7 +274,7 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
     // transposed theta shape : 2 x 3
     // (theta shape : 3 x 2)
 		caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
-		      output_grid_data, theta + 6 * i, (Dtype)0., coordinates);
+		      output_grid_data, full_theta_data + 6 * i, (Dtype)0., coordinates);
 
 		int row_idx; Dtype px, py;
 
@@ -268,6 +287,8 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 
 					px = coordinates[row_idx * 2];
 					py = coordinates[row_idx * 2 + 1];
+// Dtype x = (px + 1) / 2 * H;
+//std::cout<<prefix<<"Hum."<< px << ","<< py <<std::endl;
 
 					V[top[0]->offset(i, j, s, t)] = transform_forward_cpu(
 							U + bottom[0]->offset(i, j, 0, 0), px, py);

@@ -20,7 +20,7 @@ class SpatialTransformerLayer : public Layer<Dtype> {
 public:
 	explicit SpatialTransformerLayer(const LayerParameter& param)
       : Layer<Dtype>(param) {
-	      to_compute_dU_ = false; 
+	      to_compute_dU_ = false;
 	      global_debug = false; 
 	      pre_defined_count = 0;
       }
