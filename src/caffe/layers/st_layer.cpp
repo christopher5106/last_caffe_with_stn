@@ -102,27 +102,33 @@ void SpatialTransformerLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 	CHECK(bottom[1]->count(1) + pre_defined_count == 6) << "The dimension of theta is not six!"
 			<< " Only " << bottom[1]->count(1) << " + " << pre_defined_count << std::endl;
 	CHECK(bottom[1]->shape(0) == bottom[0]->shape(0)) << "The first dimension of theta and " <<
-			"U should be the same" << std::endl;
+			"U should be the same (batch size)" << std::endl;
 
-	// initialize the matrix for output grid
+	// initialize the matrix for output grid (x_i, y_i, 1.0)
+  // the same matrix [-1,1] by [-1,1] for all batch elements
 	std::cout<<prefix<<"Initializing the matrix for output grid"<<std::endl;
 
 	vector<int> shape_output(2);
-	shape_output[0] = output_H_ * output_W_; shape_output[1] = 3;
+	shape_output[0] = output_H_ * output_W_;
+  shape_output[1] = 3;
 	output_grid.Reshape(shape_output);
 
 	Dtype* data = output_grid.mutable_cpu_data();
-	for(int i=0; i<output_H_ * output_W_; ++i) {
+	for(int i=0; i< output_H_ * output_W_; ++i) {
 		data[3 * i] = (i / output_W_) * 1.0 / output_H_ * 2 - 1;
 		data[3 * i + 1] = (i % output_W_) * 1.0 / output_W_ * 2 - 1;
 		data[3 * i + 2] = 1;
 	}
 
 	// initialize the matrix for input grid
+  // the input grid gives, for (i,j) in the output, the corresponding position (projection)
+  // on the input
 	std::cout<<prefix<<"Initializing the matrix for input grid"<<std::endl;
 
 	vector<int> shape_input(3);
-	shape_input[0] = bottom[1]->shape(0); shape_input[1] = output_H_ * output_W_; shape_input[2] = 2;
+	shape_input[0] = bottom[1]->shape(0);
+  shape_input[1] = output_H_ * output_W_;
+  shape_input[2] = 2;
 	input_grid.Reshape(shape_input);
 
 	std::cout<<prefix<<"Initialization finished."<<std::endl;
@@ -143,6 +149,8 @@ void SpatialTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 
 	// reshape V
 	vector<int> shape(4);
+
+  ////// CAREFUL : does not take st_param().has_output_h() into consideration
 
 	shape[0] = N;
 	shape[1] = C;
@@ -187,47 +195,23 @@ Dtype SpatialTransformerLayer<Dtype>::transform_forward_cpu(const Dtype* pic, Dt
 
 	Dtype res = (Dtype)0.;
 
-	Dtype x = (px + 1) / 2 * H; Dtype y = (py + 1) / 2 * W;
-
+  // calcul de x,y (position dans l'image)
+	Dtype x = (px + 1) / 2 * H;
+  Dtype y = (py + 1) / 2 * W;
 	if(debug) std::cout<<prefix<<"(x, y) = ("<<x<<", "<<y<<")"<<std::endl;
 
-	int m, n; Dtype w;
-
-	m = floor(x); n = floor(y); w = 0;
-	if(debug) std::cout<<prefix<<"1: (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-		res += w * pic[m * W + n];
-		if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
-	}
-
-	m = floor(x) + 1; n = floor(y); w = 0;
-	if(debug) std::cout<<prefix<<"2: (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-		res += w * pic[m * W + n];
-		if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
-	}
-
-	m = floor(x); n = floor(y) + 1; w = 0;
-	if(debug) std::cout<<prefix<<"3: (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-		res += w * pic[m * W + n];
-		if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
-	}
-
-	m = floor(x) + 1; n = floor(y) + 1; w = 0;
-	if(debug) std::cout<<prefix<<"4: (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-		res += w * pic[m * W + n];
-		if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
-	}
+  for(int m_0 = 0; m_0 < 2; ++m_0)
+    for(int n_0 = 0; n_0 < 2; ++n_0) {
+      int m = floor(x) + m_0;
+      int n = floor(y) + n_0;
+      Dtype w = 0;
+      if(debug) std::cout<<prefix<<"- (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
+      if(m >= 0 && m < H && n >= 0 && n < W) {
+        w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
+        res += w * pic[m * W + n];
+        if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
+      }
+    }
 
 	if(debug) std::cout<<prefix<<"Finished. \tres = "<<res<<std::endl;
 
@@ -245,26 +229,37 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 
 	if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
+  //input layers : U and theta
 	const Dtype* U = bottom[0]->cpu_data();
 	const Dtype* theta = bottom[1]->cpu_data();
+
+  // input_grid_data : pour chaque pixel de chaque image, px et py (coordonnées du pixel dans l'image input)
+  Dtype* input_grid_data = input_grid.mutable_cpu_data();
+
 	const Dtype* output_grid_data = output_grid.cpu_data();
 
-	Dtype* input_grid_data = input_grid.mutable_cpu_data();
+  //output layer : V
 	Dtype* V = top[0]->mutable_cpu_data();
 
+  // intialize mutable_cpu_data arrays
 	caffe_set(input_grid.count(), (Dtype)0, input_grid_data);
 	caffe_set(top[0]->count(), (Dtype)0, V);
 
-	// for each input
+	// for each input in the batch
 	for(int i = 0; i < N; ++i) {
 
 		Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 2) * i;
 
+    // Matrix multiplication : coordinates = output_grid_data x theta
+    // output_grid_data shape : (output_H_ * output_W_) x 3 => (x_i, y_i, 1)
+    // transposed theta shape : 2 x 3
+    // (theta shape : 3 x 2)
 		caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
 		      output_grid_data, theta + 6 * i, (Dtype)0., coordinates);
 
 		int row_idx; Dtype px, py;
 
+    // parcours des pixels de l'output V
 		for(int j = 0; j < C; ++j)
 			for(int s = 0; s < output_H_; ++s)
 				for(int t = 0; t < output_W_; ++t) {
@@ -292,126 +287,44 @@ void SpatialTransformerLayer<Dtype>::transform_backward_cpu(Dtype dV, const Dtyp
 
 	if(debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
-	Dtype x = (px + 1) / 2 * H; Dtype y = (py + 1) / 2 * W;
+  // position (x,y)
+	Dtype x = (px + 1) / 2 * H;
+  Dtype y = (py + 1) / 2 * W;
 	if(debug) std::cout<<prefix<<"(x, y) = ("<<x<<", "<<y<<")"<<std::endl;
 
-	int m, n; Dtype w;
+  for(int m_0 = 0; m_0 < 2; ++m_0)
+    for(int n_0 = 0; n_0 < 2; ++n_0) {
+      int m = floor(x) + m_0;
+      int n = floor(y) + n_0;
+      Dtype w = 0;
+	    if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
 
-	m = floor(x); n = floor(y); w = 0;
-	if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
+    	if(m >= 0 && m < H && n >= 0 && n < W) {
+    		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
 
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
+    		dU[m * W + n] += w * dV;
 
-		dU[m * W + n] += w * dV;
+    		if(abs(x - m) < 1) {
+    			if(m >= x) {
+    				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
+    				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
+    			} else {
+    				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
+    				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
+    			}
+    		}
 
-		if(abs(x - m) < 1) {
-			if(m >= x) {
-				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			} else {
-				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			}
-		}
-
-		if(abs(y - n) < 1) {
-			if(n >= y) {
-				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			} else {
-				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			}
-		}
-	}
-
-	m = floor(x) + 1; n = floor(y); w = 0;
-	if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-
-		dU[m * W + n] += w * dV;
-
-		if(abs(x - m) < 1) {
-			if(m >= x) {
-				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			} else {
-				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			}
-		}
-
-		if(abs(y - n) < 1) {
-			if(n >= y) {
-				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			} else {
-				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			}
-		}
-	}
-
-	m = floor(x); n = floor(y) + 1; w = 0;
-	if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-
-		dU[m * W + n] += w * dV;
-
-		if(abs(x - m) < 1) {
-			if(m >= x) {
-				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			} else {
-				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			}
-		}
-
-		if(abs(y - n) < 1) {
-			if(n >= y) {
-				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			} else {
-				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			}
-		}
-	}
-
-	m = floor(x) + 1; n = floor(y) + 1; w = 0;
-	if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
-	if(m >= 0 && m < H && n >= 0 && n < W) {
-		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-
-		dU[m * W + n] += w * dV;
-
-		if(abs(x - m) < 1) {
-			if(m >= x) {
-				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			} else {
-				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-			}
-		}
-
-		if(abs(y - n) < 1) {
-			if(n >= y) {
-				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			} else {
-				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-			}
-		}
-	}
+    		if(abs(y - n) < 1) {
+    			if(n >= y) {
+    				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
+    				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
+    			} else {
+    				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
+    				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
+    			}
+    		}
+    	}
+    }
 
 	if(debug) std::cout<<prefix<<"Finished."<<std::endl;
 }
@@ -423,8 +336,8 @@ void SpatialTransformerLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
 
 		string prefix = "\t\tSpatial Transformer Layer:: Backward_cpu: \t";
 
-		CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
-				" CHECK in st_layer.cpp file. Line number: 420-421." << std::endl;
+		//CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
+		//		" CHECK in st_layer.cpp file. Line number: 420-421." << std::endl;
 
 		if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
@@ -440,8 +353,10 @@ void SpatialTransformerLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
 		caffe_set(bottom[1]->count(), (Dtype)0, dTheta);
 		caffe_set(input_grid.count(), (Dtype)0, input_grid_diff);
 
+    // for each image in batch
 		for(int i = 0; i < N; ++i) {
 
+      // gets projection coordinate for each input
 			const Dtype* coordinates = input_grid_data + (output_H_ * output_W_ * 2) * i;
 			Dtype* coordinates_diff = input_grid_diff + (output_H_ * output_W_ * 2) * i;
 
