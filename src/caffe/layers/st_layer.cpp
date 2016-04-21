@@ -248,17 +248,17 @@ void SpatialTransformerLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
 	caffe_set(top[0]->count(), (Dtype)0, V);
 
   // compute full_theta
-  std::cout<<prefix<<"compute full theta"<< std::endl;
+  if(global_debug) std::cout<<prefix<<"compute full theta"<< std::endl;
   int k = 0;
   for(int i=0; i<6; ++i) {
     if(is_pre_defined_theta[i]) {
       for(int j = 0; j < N ; j++)
         full_theta_data[full_theta.offset(j,i)] = pre_defined_theta[i];
-      std::cout<<prefix<<"assigning predefined"<<pre_defined_theta[i] << std::endl;
+      if(global_debug) std::cout<<prefix<<"assigning predefined"<<pre_defined_theta[i] << std::endl;
     } else {
       for(int j = 0; j < N ; j++){
         full_theta_data[full_theta.offset(j,i)] = theta[bottom[1]->offset(j,k)];
-        std::cout<<prefix<<"assigning "<<theta[bottom[1]->offset(j,k)] << std::endl;
+        if(global_debug) std::cout<<prefix<<"assigning "<<theta[bottom[1]->offset(j,k)] << std::endl;
       }
       ++ k;
     }
