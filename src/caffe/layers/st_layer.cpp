@@ -187,10 +187,8 @@ template <typename Dtype>
 Dtype SpatialTransformerLayer<Dtype>::transform_forward_cpu(const Dtype* pic, Dtype px, Dtype py) {
 
 	bool debug = false;
-
 	string prefix = "\t\tSpatial Transformer Layer:: transform_forward_cpu: \t";
-
-	//if(debug) std::cout<<prefix<<"Starting!\t"<<std::endl;
+	if(debug) std::cout<<prefix<<"Starting!\t"<<std::endl;
 	if(debug) std::cout<<prefix<<"(px, py) = ("<<px<<", "<<py<<")"<<std::endl;
 
 	Dtype res = (Dtype)0.;
@@ -200,16 +198,12 @@ Dtype SpatialTransformerLayer<Dtype>::transform_forward_cpu(const Dtype* pic, Dt
   Dtype y = (py + 1) / 2 * W;
 	if(debug) std::cout<<prefix<<"(x, y) = ("<<x<<", "<<y<<")"<<std::endl;
 
-  for(int m_0 = 0; m_0 < 2; ++m_0)
-    for(int n_0 = 0; n_0 < 2; ++n_0) {
-      int m = floor(x) + m_0;
-      int n = floor(y) + n_0;
-      Dtype w = 0;
+  for(int m = floor(x); m <= ceil(x); ++m)
+    for(int n = floor(y); n <= ceil(y); ++n) {
       if(debug) std::cout<<prefix<<"- (m, n) = ("<<m<<", "<<n<<")"<<std::endl;
       if(m >= 0 && m < H && n >= 0 && n < W) {
-        w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-        res += w * pic[m * W + n];
-        //if(debug) std::cout<<prefix<<"w = "<<w<<", pic[m, n] = "<<pic[m * W + n]<<std::endl;
+        res += (1 - abs(x - m)) * (1 - abs(y - n)) * pic[m * W + n];
+        if(debug) std::cout<<prefix<<" pic[m, n] = "<<pic[m * W + n]<<std::endl;
       }
     }
 
@@ -303,9 +297,7 @@ void SpatialTransformerLayer<Dtype>::transform_backward_cpu(Dtype dV, const Dtyp
 		const Dtype py, Dtype* dU, Dtype& dpx, Dtype& dpy) {
 
 	bool debug = false;
-
 	string prefix = "\t\tSpatial Transformer Layer:: transform_backward_cpu: \t";
-
 	if(debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
   // position (x,y)
@@ -313,37 +305,14 @@ void SpatialTransformerLayer<Dtype>::transform_backward_cpu(Dtype dV, const Dtyp
   Dtype y = (py + 1) / 2 * W;
 	if(debug) std::cout<<prefix<<"(x, y) = ("<<x<<", "<<y<<")"<<std::endl;
 
-  for(int m_0 = 0; m_0 < 2; ++m_0)
-    for(int n_0 = 0; n_0 < 2; ++n_0) {
-      int m = floor(x) + m_0;
-      int n = floor(y) + n_0;
-      Dtype w = 0;
+  for(int m = floor(x); m <= ceil(x); ++m)
+    for(int n = floor(y); n <= ceil(y); ++n) {
 	    if(debug) std::cout<<prefix<<"(m, n) = ("<<m<<", "<<n<<")"<<std::endl;
-
     	if(m >= 0 && m < H && n >= 0 && n < W) {
-    		w = max(0, 1 - abs(x - m)) * max(0, 1 - abs(y - n));
-
-    		dU[m * W + n] += w * dV;
-
-    		if(abs(x - m) < 1) {
-    			if(m >= x) {
-    				dpx += max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-    				if(debug) std::cout<<prefix<<"dpx += "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-    			} else {
-    				dpx -= max(0, 1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
-    				if(debug) std::cout<<prefix<<"dpx -= "<<max(0, 1 - abs(y - n))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<H / 2<<std::endl;
-    			}
-    		}
-
-    		if(abs(y - n) < 1) {
-    			if(n >= y) {
-    				dpy += max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-    				if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-    			} else {
-    				dpy -= max(0, 1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
-    				if(debug) std::cout<<prefix<<"dpy -= "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
-    			}
-    		}
+    		dU[m * W + n] += dV * (1 - abs(x - m)) * (1 - abs(y - n));
+        dpx += caffe_sign<Dtype>(m - x) * (1 - abs(y - n)) * U[m * W + n] * dV * H / 2;
+    		dpy += caffe_sign<Dtype>(n - y) * (1 - abs(x - m)) * U[m * W + n] * dV * W / 2;
+    		if(debug) std::cout<<prefix<<"dpy += "<<max(0, 1 - abs(x - m))<<" * "<<U[m * W + n]<<" * "<<dV<<" * "<<W / 2<<std::endl;
     	}
     }
 
