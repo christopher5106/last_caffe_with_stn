@@ -326,8 +326,8 @@ void SpatialTransformerLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
 
 		string prefix = "\t\tSpatial Transformer Layer:: Backward_cpu: \t";
 
-		//CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
-		//		" CHECK in st_layer.cpp file. Line number: 420-421." << std::endl;
+//		CHECK(false) << "Don't use the CPU implementation! If you really want to, delete the" <<
+//				" CHECK in st_layer.cpp file. Line number: 420-421." << std::endl;
 
 		if(global_debug) std::cout<<prefix<<"Starting!"<<std::endl;
 
