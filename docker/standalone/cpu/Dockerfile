@@ -23,6 +23,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python-scipy && \
     rm -rf /var/lib/apt/lists/*
 
+
+ENV OPENCV_ROOT=/opt/opencv
+RUN mkdir -p $OPENCV_ROOT
+WORKDIR $OPENCV_ROOT
+RUN git clone https://github.com/Itseez/opencv.git .
+RUN apt-get install -y libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
+RUN apt-get install -y libjpeg-dev libpng-dev libtiff-dev libjasper-dev libdc1394-22-dev
+#libtbb2 libtbb-dev
+RUN mkdir -p $OPENCV_ROOT/release
+WORKDIR $OPENCV_ROOT/release
+RUN cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local ..
+RUN make -j"$(nproc)"
+RUN sudo make install
+
 ENV CAFFE_ROOT=/opt/caffe
 WORKDIR $CAFFE_ROOT
 
