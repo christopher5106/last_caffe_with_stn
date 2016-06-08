@@ -65,15 +65,14 @@ template <typename Dtype>
 void RepeatLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
-      std::cout << "back propa" << std::endl;
-  // if (propagate_down[0]) {
+  if (propagate_down[0]) {
     const Dtype* top_diff = top[0]->cpu_diff();
     // Gradient with respect to bottom data
       caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans,
           M_, K_, N_ * K_,
           (Dtype)1., top_diff, this->blobs_[0]->cpu_data(),
           (Dtype)0., bottom[0]->mutable_cpu_diff());
-  //}
+  }
 }
 
 #ifdef CPU_ONLY
