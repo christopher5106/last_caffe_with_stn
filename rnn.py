@@ -39,7 +39,7 @@ for k, v in solver.net.params.items():
 
 niter= NUM_EPOCH * batches_train
 train_loss = np.zeros(niter)
-#solver.net.params['lstm1'][2].data[15:30]=5
+#solver.net.params['lstm1'][2].data[256:256*2]=5
 solver.net.blobs['clip'].data[...] = np.array([[0,1,1]]*100).reshape(100,3,1)
 iter = 0;
 
@@ -47,7 +47,7 @@ for epoch in range(NUM_EPOCH):
     shuffle = np.random.permutation(x_train.shape[0])
     for i in range(batches_train):
         idx = shuffle[i*num_batch:(i+1)*num_batch]
-        x_batch =x_train[idx]
+        x_batch = x_train[idx]
         y_batch = y_train[idx]
 
         #print solver.net.blobs['clip'].data[...]
@@ -58,6 +58,8 @@ for epoch in range(NUM_EPOCH):
         solver.step(1)
         train_loss[iter] = solver.net.blobs['loss'].data
         if iter % test_interval == 0:
+            solver.test_nets[0].blobs['data'].data[...] =x_batch
+            solver.test_nets[0].blobs['label'].data[...]=y_batch
             solver.test_nets[0].forward()
             solver.test_nets[0].blobs['accuracy'].data
         print "Iter", iter, train_loss[iter]
