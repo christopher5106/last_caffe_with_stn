@@ -1,8 +1,8 @@
 name: "RNN"
 input: "data"
-input_shape { dim: 100 dim:1 dim: 100 dim:100 }
+input_shape { dim: 100 dim: 1 dim: 100 dim:100 }
 input: "clip"
-input_shape { dim: 100 dim: 3 dim:3 }
+input_shape { dim: 100 dim: 3 dim:1 }
 input: "label"
 input_shape { dim: 100 dim: 3 }
 
@@ -27,6 +27,31 @@ layer {
       dim: 1
       dim: 100
       dim: 100
+    }
+  }
+}
+
+layer {
+  name: "reshape_clip"
+  type: "Reshape"
+  bottom: "clip"
+  top: "r_clip"
+  reshape_param {
+    shape {
+      dim: -1 # infer it from the other dimensions
+    }
+  }
+}
+
+layer {
+  name: "r_label"
+  type: "Reshape"
+  bottom: "label"
+  top: "r_label"
+  reshape_param {
+    shape {
+      dim: -1 # infer it from the other dimensions
+      dim: 1
     }
   }
 }
@@ -172,7 +197,7 @@ layer {
   name: "lstm1"
   type: "Lstm"
   bottom: "r_l_repeat_loc"
-  bottom: "clip"
+  bottom: "r_clip"
   top: "lstm1"
 
   lstm_param {
@@ -368,15 +393,13 @@ layer {
   }
 }
 layer {
-  name: "r_label"
-  type: "Reshape"
-  bottom: "label"
-  top: "r_label"
-  reshape_param {
-    shape {
-      dim: -1 # infer it from the other dimensions
-      dim: 1
-    }
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "class2"
+  bottom: "r_label"
+  top: "accuracy"
+  include {
+    phase: TEST
   }
 }
 layer {
