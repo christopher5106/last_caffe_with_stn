@@ -21,6 +21,7 @@ layer {
   type: "Reshape"
   bottom: "r_data"
   top: "r_data_r"
+  propagate_down: 0
   reshape_param {
     shape {
       dim: -1 # infer it from the other dimensions
@@ -281,12 +282,12 @@ layer {
     stride: 2
   }
 }
-layer {
-  name: "dropout1"
-  type: "Dropout"
-  bottom: "l_pool1"
-  top: "l_pool1"
-}
+#layer {
+#  name: "dropout1"
+#  type: "Dropout"
+#  bottom: "l_pool1"
+#  top: "l_pool1"
+#}
 layer {
   name: "l_conv1"
   type: "Convolution"
@@ -321,12 +322,12 @@ layer {
     stride: 2
   }
 }
-layer {
-  name: "dropout2"
-  type: "Dropout"
-  bottom: "l_pool2"
-  top: "l_pool2"
-}
+#layer {
+#  name: "dropout2"
+#  type: "Dropout"
+#  bottom: "l_pool2"
+#  top: "l_pool2"
+#}
 layer {
   name: "l_conv2"
   type: "Convolution"
