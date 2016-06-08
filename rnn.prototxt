@@ -1,0 +1,388 @@
+name: "RNN"
+input: "data"
+input_shape { dim: 100 dim:1 dim: 100 dim:100 }
+input: "clip"
+input_shape { dim: 100 dim: 3 dim:3 }
+input: "label"
+input_shape { dim: 100 dim: 3 }
+
+layer {
+  name: "r_data"
+  type: "Repeat"
+  bottom: "data"
+  top: "r_data"
+  propagate_down: 0
+  repeat_param {
+    num_repeats: 3
+  }
+}
+layer {
+  name: "reshape_data"
+  type: "Reshape"
+  bottom: "r_data"
+  top: "r_data_r"
+  reshape_param {
+    shape {
+      dim: -1 # infer it from the other dimensions
+      dim: 1
+      dim: 100
+      dim: 100
+    }
+  }
+}
+
+layer {
+  name: "pool0_loc"
+  type: "Pooling"
+  bottom: "data"
+  top: "pool0_loc"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv0_loc"
+  type: "Convolution"
+  bottom: "pool0_loc"
+  top: "conv0_loc"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 20
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool1_loc"
+  type: "Pooling"
+  bottom: "conv0_loc"
+  top: "pool1_loc"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv1_loc"
+  type: "Convolution"
+  bottom: "pool1_loc"
+  top: "conv1_loc"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 20
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool2_loc"
+  type: "Pooling"
+  bottom: "conv1_loc"
+  top: "pool2_loc"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv2_loc"
+  type: "Convolution"
+  bottom: "pool2_loc"
+  top: "conv2_loc"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 20
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "conv2_loc"
+  top: "r_conv2_loc"
+  reshape_param {
+    shape {
+      dim: 0  # copy the dimension from below
+      dim: -1 # infer it from the other dimensions
+    }
+  }
+}
+
+layer {
+  name: "repeat"
+  type: "Repeat"
+  bottom: "r_conv2_loc"
+  top: "l_repeat_loc"
+  propagate_down: 1
+  repeat_param {
+    num_repeats: 3
+  }
+}
+layer {
+  name: "reshape"
+  type: "Reshape"
+  bottom: "l_repeat_loc"
+  top: "r_l_repeat_loc"
+  reshape_param {
+    shape {
+      dim: -1 # infer it from the other dimensions
+      dim: 1620
+    }
+  }
+}
+layer {
+  name: "lstm1"
+  type: "Lstm"
+  bottom: "r_l_repeat_loc"
+  bottom: "clip"
+  top: "lstm1"
+
+  lstm_param {
+    num_output: 256
+    clipping_threshold: 0.1
+    weight_filler {
+      type: "gaussian"
+      std: 0.1
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "l_A_net"
+  type: "InnerProduct"
+  bottom: "lstm1"
+  top: "l_A_net"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 6
+    weight_filler {
+      type: "constant"
+      value: 0
+    }
+    bias_filler {
+      type: "file"
+      file: "bias_init.txt"
+    }
+  }
+}
+layer {
+  name: "l_transform"
+  type: "SpatialTransformer"
+  bottom: "r_data_r"
+  bottom: "l_A_net"
+  top: "l_transform"
+  st_param {
+    to_compute_dU: false
+    output_H: 33
+    output_W: 33
+  }
+}
+layer {
+  name: "l_conv0"
+  type: "Convolution"
+  bottom: "l_transform"
+  top: "l_conv0"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "l_pool1"
+  type: "Pooling"
+  bottom: "l_conv0"
+  top: "l_pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "dropout1"
+  type: "Dropout"
+  bottom: "l_pool1"
+  top: "l_pool1"
+}
+layer {
+  name: "l_conv1"
+  type: "Convolution"
+  bottom: "l_pool1"
+  top: "l_conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "l_pool2"
+  type: "Pooling"
+  bottom: "l_conv1"
+  top: "l_pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "dropout2"
+  type: "Dropout"
+  bottom: "l_pool2"
+  top: "l_pool2"
+}
+layer {
+  name: "l_conv2"
+  type: "Convolution"
+  bottom: "l_pool2"
+  top: "l_conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 32
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "class1"
+  type: "InnerProduct"
+  bottom: "l_conv2"
+  top: "class1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 400
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "class2"
+  type: "InnerProduct"
+  bottom: "class1"
+  top: "class2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 10
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "r_label"
+  type: "Reshape"
+  bottom: "label"
+  top: "r_label"
+  reshape_param {
+    shape {
+      dim: -1 # infer it from the other dimensions
+      dim: 1
+    }
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "class2"
+  bottom: "r_label"
+  top: "loss"
+}
