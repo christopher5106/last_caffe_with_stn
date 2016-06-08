@@ -1,5 +1,6 @@
-# Spatial Transformer Networks
+# Spatial Transformer Networks and LSTM RNN in Caffe
 
+## Spatial Transformer Networks
 
 Spatial Transformer Networks from https://github.com/daerduoCarey/SpatialTransformerLayer with an updated (last) version of Caffe and some code cleaning and corrections.
 
@@ -14,3 +15,9 @@ Commands to build a Docker :
 or pull it directly :
 
     docker pull christopher5106/caffe:stn
+
+## LSTM RNN
+
+LSTM from https://github.com/junhyukoh/caffe-lstm
+
+My tutorial about [LSTM in Caffe](http://christopher5106.github.io/deep/learning/2016/06/07/recurrent-neural-net-with-Caffe.html).

@@ -226,6 +226,92 @@ void caffe_abs<double>(const int n, const double* a, double* y) {
     vdAbs(n, a, y);
 }
 
+
+template <typename Dtype>
+inline Dtype sigmoid(Dtype x) {
+  return 1. / (1. + exp(-x));
+}
+
+template <>
+void caffe_sigmoid(const int N, const float* x, float* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = sigmoid(x[i]);
+  }
+}
+
+template <>
+void caffe_sigmoid(const int N, const double* x, double* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = sigmoid(x[i]);
+  }
+}
+
+template <>
+void caffe_sigmoid_diff(const int N, const float* y, const float* y_diff,
+    float* x_diff) {
+  for (int i = 0; i < N; ++i) {
+    const float sigmoid_x = y[i];
+    x_diff[i] = y_diff[i] * sigmoid_x * (1. - sigmoid_x);
+  }
+}
+
+template <>
+void caffe_sigmoid_diff(const int N, const double* y, const double* y_diff,
+    double* x_diff) {
+  for (int i = 0; i < N; ++i) {
+    const double sigmoid_x = y[i];
+    x_diff[i] = y_diff[i] * sigmoid_x * (1. - sigmoid_x);
+  }
+}
+
+template <>
+void caffe_tanh(const int N, const float* x, float* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = tanh(x[i]);
+  }
+}
+
+template <>
+void caffe_tanh(const int N, const double* x, double* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = tanh(x[i]);
+  }
+}
+
+template <>
+void caffe_tanh_diff(const int N, const float* y, const float* y_diff,
+    float* x_diff) {
+  for (int i = 0; i < N; ++i) {
+    const float tanh_x = y[i];
+    x_diff[i] = y_diff[i] * (1. - tanh_x * tanh_x);
+  }
+}
+
+template <>
+void caffe_tanh_diff(const int N, const double* y, const double* y_diff,
+    double* x_diff) {
+  for (int i = 0; i < N; ++i) {
+    const double tanh_x = y[i];
+    x_diff[i] = y_diff[i] * (1. - tanh_x * tanh_x);
+  }
+}
+
+template <>
+void caffe_bound(const int N, const float* a, const float min,
+    const float max, float* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = std::min(std::max(a[i], min), max);
+  }
+}
+
+template <>
+void caffe_bound(const int N, const double* a, const double min,
+    const double max, double* y) {
+  for (int i = 0; i < N; ++i) {
+    y[i] = std::min(std::max(a[i], min), max);
+  }
+}
+
 unsigned int caffe_rng_rand() {
   return (*caffe_rng())();
 }
