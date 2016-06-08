@@ -18,7 +18,7 @@ void RepeatLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
 
   } else {
     caffe_gpu_gemm<Dtype>(CblasNoTrans,CblasTrans,
-                          M_, N_, K_, (Dtype)1.,
+                          M_, N_ * K_, K_, (Dtype)1.,
                           bottom_data, weight, (Dtype)0., top_data);
   }
 }
