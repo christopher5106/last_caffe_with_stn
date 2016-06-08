@@ -431,6 +431,7 @@ message LayerParameter {
   optional LogParameter log_param = 134;
   optional LRNParameter lrn_param = 118;
   optional LSTMParameter lstm_param = 201;
+  optional RepeatParameter repeat_param = 202;
   optional MemoryDataParameter memory_data_param = 119;
   optional MVNParameter mvn_param = 120;
   optional PoolingParameter pooling_param = 121;
@@ -878,6 +879,11 @@ message InnerProductParameter {
   // of the weight matrix. The weight matrix itself is not going to be transposed
   // but rather the transfer flag of operations will be toggled accordingly.
   optional bool transpose = 6 [default = false];
+}
+
+message RepeatParameter {
+  optional uint32 num_repeats = 1; // The number of outputs for the layer
+  optional int32 axis = 2 [default = 1];
 }
 
 message InputParameter {

@@ -21,3 +21,7 @@ or pull it directly :
 LSTM from https://github.com/junhyukoh/caffe-lstm
 
 My tutorial about [LSTM in Caffe](http://christopher5106.github.io/deep/learning/2016/06/07/recurrent-neural-net-with-Caffe.html).
+
+## Repeat Layer
+
+As in https://github.com/skaae/recurrent-spatial-transformer-code I created a RepeatLayer designed for Recurrent Neural Nets.
