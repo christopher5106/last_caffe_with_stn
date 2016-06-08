@@ -202,7 +202,7 @@ layer {
   top: "lstm1"
 
   lstm_param {
-    num_output: 256
+    num_output: 25
     clipping_threshold: 0.1
     weight_filler {
       type: "gaussian"

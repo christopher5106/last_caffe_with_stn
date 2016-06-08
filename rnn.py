@@ -28,9 +28,9 @@ print "num steps", num_steps
 import sys
 sys.path.insert(0, 'python')
 import caffe
-caffe.set_mode_cpu()
+caffe.set_mode_gpu()
 
-solver = caffe.SGDSolver('rnn_solver.prototxt')
+solver = caffe.RMSPropSolver('rnn_solver.prototxt')
 print [(k, v.data.shape) for k, v in solver.net.blobs.items()]
 for k, v in solver.net.params.items():
     print k
