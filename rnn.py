@@ -28,7 +28,7 @@ print "num steps", num_steps
 import sys
 sys.path.insert(0, 'python')
 import caffe
-caffe.set_mode_gpu()
+#caffe.set_mode_gpu()
 
 solver = caffe.RMSPropSolver('rnn_solver.prototxt')
 print [(k, v.data.shape) for k, v in solver.net.blobs.items()]
@@ -49,7 +49,6 @@ for epoch in range(NUM_EPOCH):
         idx = shuffle[i*num_batch:(i+1)*num_batch]
         x_batch = x_train[idx]
         y_batch = y_train[idx]
-
         #print solver.net.blobs['clip'].data[...]
         #print x_batch.shape
         #print y_batch.shape
